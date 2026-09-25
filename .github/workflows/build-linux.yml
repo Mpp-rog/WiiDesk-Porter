@@ -39,7 +39,7 @@ jobs:
           # Direct fallback if GitHub API assets are empty
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
             echo "Falling back to direct release asset tag URL..."
-            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk-Setup.exe" # Adjust binary name if needed
+            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe" # Adjust binary name if needed
           fi
           
           echo "Downloading $DOWNLOAD_URL"
