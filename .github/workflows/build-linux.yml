@@ -65,7 +65,7 @@ jobs:
 
       - name: Build Linux Directory via Electron Packager
         run: |
-          npx @electron/packager ./src WiiDesk --platform=linux --arch=x64 --out=dist --overwrite --electron-version=4.4.0
+          npx @electron/packager ./src WiiDesk --platform=linux --arch=x64 --out=dist --overwrite --electron-version=30.0.0
 
       - name: Download appimagetool
         run: |
