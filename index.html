@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WiiDesk for Linux</title>
+  <title>WiiDesk Downloads</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -41,6 +41,14 @@
     .btn:active {
       transform: translateY(0);
     }
+    .btn-disabled {
+      background-color: #21262d !important;
+      color: #6e7681 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      border: 1px solid #30363d;
+      transform: none !important;
+    }
     #status {
       margin-top: 20px;
       font-size: 14px;
@@ -52,14 +60,14 @@
 
   <div class="container">
     <div id="download-container"></div>
-    <div id="status">Locating latest build...</div>
+    <div id="status">Locating latest releases...</div>
   </div>
 
   <script>
     const OWNER = 'WiiDesk';
     const REPO = 'WiiDesk-1.0.0';
 
-    async function fetchLatestAppImage() {
+    async function fetchLatestReleases() {
       const statusDiv = document.getElementById('status');
       const containerDiv = document.getElementById('download-container');
 
@@ -72,20 +80,43 @@
         }
 
         const data = await response.json();
-        const appimageAsset = data.assets.find(asset => asset.name.endsWith('.AppImage'));
+        
+        // Find assets starting with 'wiidesk' and ending with .appimage or .dmg
+        const appimageAsset = data.assets.find(asset => {
+          const name = asset.name.toLowerCase();
+          return name.startsWith('wiidesk') && name.endsWith('.appimage');
+        });
 
+        const dmgAsset = data.assets.find(asset => {
+          const name = asset.name.toLowerCase();
+          return name.startsWith('wiidesk') && name.endsWith('.dmg');
+        });
+
+        let buttonsHtml = '';
+
+        // Linux Button (Purple)
         if (appimageAsset) {
-          statusDiv.style.display = "none";
-          containerDiv.innerHTML = `<a class="btn" href="${appimageAsset.browser_download_url}">wiidesk port for linux</a>`;
+          buttonsHtml += `<a class="btn" href="${appimageAsset.browser_download_url}">wiidesk port for linux</a><br><br>`;
         } else {
-          statusDiv.innerText = "Latest release does not contain an .AppImage file.";
+          buttonsHtml += `<button class="btn btn-disabled" disabled>wiidesk port for linux (not available)</button><br><br>`;
         }
+
+        // macOS DMG Button (Grayed Out)
+        if (dmgAsset) {
+          buttonsHtml += `<a class="btn" href="${dmgAsset.browser_download_url}">wiidesk port for mac os</a>`;
+        } else {
+          buttonsHtml += `<button class="btn btn-disabled" disabled>mac os build isnt here yet</button>`;
+        }
+
+        statusDiv.style.display = "none";
+        containerDiv.innerHTML = buttonsHtml;
+
       } catch (err) {
         statusDiv.innerText = "Error fetching release details from GitHub.";
       }
     }
 
-    fetchLatestAppImage();
+    fetchLatestReleases();
   </script>
 </body>
 </html>
