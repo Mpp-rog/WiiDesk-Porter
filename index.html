@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WiiDesk for Linux</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #0d0d11;
+      color: #e0e0e0;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      padding: 24px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 16px 32px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: #8a2be2;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 4px 14px rgba(138, 43, 226, 0.4);
+    }
+    .btn:hover {
+      background-color: #7b1fa2;
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #757575;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div id="download-container"></div>
+    <div id="status">Locating latest build...</div>
+  </div>
+
+  <script>
+    const OWNER = 'WiiDesk';
+    const REPO = 'WiiDesk-1.0.0';
+
+    async function fetchLatestAppImage() {
+      const statusDiv = document.getElementById('status');
+      const containerDiv = document.getElementById('download-container');
+
+      try {
+        const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`);
+        
+        if (!response.ok) {
+          statusDiv.innerText = "No published releases found.";
+          return;
+        }
+
+        const data = await response.json();
+        const appimageAsset = data.assets.find(asset => asset.name.endsWith('.AppImage'));
+
+        if (appimageAsset) {
+          statusDiv.style.display = "none";
+          containerDiv.innerHTML = `<a class="btn" href="${appimageAsset.browser_download_url}">wiidesk port for linux</a>`;
+        } else {
+          statusDiv.innerText = "Latest release does not contain an .AppImage file.";
+        }
+      } catch (err) {
+        statusDiv.innerText = "Error fetching release details from GitHub.";
+      }
+    }
+
+    fetchLatestAppImage();
+  </script>
+</body>
+</html>
