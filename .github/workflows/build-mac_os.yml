@@ -88,20 +88,22 @@ jobs:
 
       - name: Build DMG Package
         run: |
-          # Build .dmg output using create-dmg tool
-          create-dmg \
-            --volname "WiiDesk Installer" \
-            --window-pos 200 120 \
-            --window-size 600 400 \
-            --icon-size 100 \
-            --app-drop-link 450 185 \
-            "wiidesk-macos.dmg" \
-            "dist/WiiDesk-darwin-x64/WiiDesk.app" || true
+          mkdir -p dmg_out
+          
+          # Simplified create-dmg invocation
+          npx create-dmg \
+            --overwrite \
+            "dist/WiiDesk-darwin-x64/WiiDesk.app" \
+            dmg_out || true
 
-          # Fallback check if create-dmg created a different filename
-          if [ ! -f "wiidesk-macos.dmg" ]; then
-            GENERATED_DMG=$(find . -maxdepth 2 -name "*.dmg" | head -n 1)
-            mv "$GENERATED_DMG" wiidesk-macos.dmg
+          # Find whatever DMG got created and move it to wiidesk-macos.dmg
+          DMG_FILE=$(find dmg_out dist -name "*.dmg" | head -n 1)
+          
+          if [ -n "$DMG_FILE" ]; then
+            cp "$DMG_FILE" wiidesk-macos.dmg
+          else
+            echo "create-dmg failed, falling back to hdiutil..."
+            hdiutil create -volname "WiiDesk" -srcfolder "dist/WiiDesk-darwin-x64/WiiDesk.app" -ov -format UDZO wiidesk-macos.dmg
           fi
 
       - name: Upload macOS DMG Artifact
