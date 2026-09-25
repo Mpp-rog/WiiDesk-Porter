@@ -1,0 +1,121 @@
+name: Build macOS DMG
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install System & Build Dependencies
+        run: |
+          brew install p7zip jq wget
+          npm install -g create-dmg
+
+      - name: Fetch Latest Upstream Windows Release
+        run: |
+          # Fetch upstream release JSON
+          RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases/latest)
+          
+          if echo "$RELEASE_JSON" | grep -q "Not Found"; then
+            echo "Latest release not found, querying all releases/tags..."
+            RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases | jq '.[0]')
+          fi
+
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[]? | select(.name | test(".*\\.(exe|zip)$")) | .browser_download_url' | head -n 1)
+          
+          # Direct fallback if GitHub API assets are empty
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Falling back to direct release asset tag URL..."
+            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe"
+          fi
+          
+          echo "Downloading $DOWNLOAD_URL"
+          wget -O upstream_release.exe "$DOWNLOAD_URL"
+
+      - name: Extract Upstream Executable
+        run: |
+          # First pass extraction of the NSIS installer via p7zip
+          7z x upstream_release.exe -oextracted_exe
+
+          # Second pass: check for nested app*.7z archive inside $PLUGINSDIR or root
+          NESTED_7Z=$(find extracted_exe -type f -iname "app*.7z" | head -n 1)
+          if [ -n "$NESTED_7Z" ]; then
+            echo "Found nested archive: $NESTED_7Z. Extracting..."
+            7z x "$NESTED_7Z" -oextracted_exe/unpacked_app -y
+          fi
+
+      - name: Extract app.asar to Unpacked Directory
+        run: |
+          ASAR_PATH=$(find extracted_exe -type f -name "app.asar" | head -n 1)
+          
+          if [ -z "$ASAR_PATH" ]; then
+            echo "app.asar not found in extracted release!"
+            echo "Contents of extracted_exe for debugging:"
+            find extracted_exe -maxdepth 3
+            exit 1
+          fi
+
+          echo "Found app.asar at: $ASAR_PATH"
+          npx @electron/asar extract "$ASAR_PATH" unpacked
+
+      - name: Build macOS App Bundle via Electron Packager
+        run: |
+          npx @electron/packager ./unpacked WiiDesk --platform=darwin --arch=x64 --out=dist --overwrite --electron-version=30.0.0
+
+      - name: Move Unpacked Files into Resources
+        run: |
+          rm -rf dist/WiiDesk-darwin-x64/WiiDesk.app/Contents/Resources/app*
+          mkdir -p dist/WiiDesk-darwin-x64/WiiDesk.app/Contents/Resources/app
+          cp -r unpacked/* dist/WiiDesk-darwin-x64/WiiDesk.app/Contents/Resources/app/
+
+      - name: Build DMG Package
+        run: |
+          # Build .dmg output using create-dmg tool
+          create-dmg \
+            --volname "WiiDesk Installer" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --app-drop-link 450 185 \
+            "wiidesk-macos.dmg" \
+            "dist/WiiDesk-darwin-x64/WiiDesk.app" || true
+
+          # Fallback check if create-dmg created a different filename
+          if [ ! -f "wiidesk-macos.dmg" ]; then
+            GENERATED_DMG=$(find . -maxdepth 2 -name "*.dmg" | head -n 1)
+            mv "$GENERATED_DMG" wiidesk-macos.dmg
+          fi
+
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiDesk-macOS-DMG
+          path: wiidesk-macos.dmg
+
+      - name: Create Tag and Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "latest"
+          name: "WiiDesk Releases"
+          body: "Automated macOS build generated for testing."
+          files: wiidesk-macos.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
