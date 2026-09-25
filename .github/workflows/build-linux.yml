@@ -1,0 +1,65 @@
+name: Build Linux AppImage
+
+on:
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+  schedule:
+    - cron: '0 0 * * *' # Automatically runs daily
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install System & Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full wget fuse
+          npm install -g @electron/packager
+
+      - name: Fetch Latest Upstream Windows Release
+        run: |
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/WiiDesk/WiiDesk-1.0.0/releases/latest | grep "browser_download_url.*exe" | cut -d : -f 2,3 | tr -d \")
+          wget -O installer.exe "$DOWNLOAD_URL"
+
+      - name: Extract app.asar
+        run: |
+          7z x installer.exe -oextracted_exe
+          mkdir -p src/resources
+          cp "extracted_exe/\$PLUGINSDIR/app-64/resources/app.asar" src/resources/
+
+      - name: Create Minimal package.json for Packager
+        run: |
+          cat << 'EOF' > src/package.json
+          {
+            "name": "wiidesk",
+            "version": "1.0.0",
+            "main": "resources/app.asar"
+          }
+          EOF
+
+      - name: Build Linux Directory via Electron Packager
+        run: |
+          npx @electron/packager ./src WiiDesk --platform=linux --arch=x64 --out=dist --overwrite
+
+      - name: Download appimagetool
+        run: |
+          wget https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build AppImage
+        run: |
+          ./appimagetool-x86_64.AppImage --appimage-extract-and-run dist/WiiDesk-linux-x64 WiiDesk-x86_64.AppImage
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiDesk-Linux-AppImage
+          path: WiiDesk-x86_64.AppImage
