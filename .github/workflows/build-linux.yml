@@ -39,14 +39,23 @@ jobs:
           # Direct fallback if GitHub API assets are empty
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
             echo "Falling back to direct release asset tag URL..."
-            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe" # Adjust binary name if needed
+            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe"
           fi
           
           echo "Downloading $DOWNLOAD_URL"
           wget -O upstream_release.exe "$DOWNLOAD_URL"
+
       - name: Extract Upstream Executable
         run: |
+          # First pass extraction of the NSIS installer
           7z x upstream_release.exe -oextracted_exe
+
+          # Second pass: check for nested app*.7z archive inside $PLUGINSDIR or root
+          NESTED_7Z=$(find extracted_exe -type f -iname "app*.7z" | head -n 1)
+          if [ -n "$NESTED_7Z" ]; then
+            echo "Found nested archive: $NESTED_7Z. Extracting..."
+            7z x "$NESTED_7Z" -oextracted_exe/unpacked_app -y
+          fi
 
       - name: Extract app.asar to Unpacked Directory
         run: |
@@ -54,9 +63,12 @@ jobs:
           
           if [ -z "$ASAR_PATH" ]; then
             echo "app.asar not found in extracted release!"
+            echo "Contents of extracted_exe for debugging:"
+            find extracted_exe -maxdepth 3
             exit 1
           fi
 
+          echo "Found app.asar at: $ASAR_PATH"
           npx @electron/asar extract "$ASAR_PATH" unpacked
 
       - name: Build Linux Directory via Electron Packager
