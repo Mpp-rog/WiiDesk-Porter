@@ -1,6 +1,11 @@
 name: Build Linux AppImage
 
+permissions:
+  contents: write
+
 on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
   workflow_dispatch:
   push:
     branches:
@@ -113,3 +118,13 @@ jobs:
         with:
           name: WiiDesk-Linux-AppImage
           path: WiiDesk-x86_64.AppImage
+      
+      - name: Create Tag and Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: "latest"
+          name: "WiiDesk Linux Build"
+          body: "Automated Linux AppImage build generated from upstream Windows release."
+          files: WiiDesk-x86_64.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
