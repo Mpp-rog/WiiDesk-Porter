@@ -1,9 +1,10 @@
 name: Build Linux AppImage
 
 on:
-  workflow_dispatch: # Allows manual trigger from the Actions tab
-  schedule:
-    - cron: '0 0 * * *' # Automatically runs daily at midnight UTC
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -21,62 +22,55 @@ jobs:
       - name: Install System & Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full wget fuse jq
-          npm install -g @electron/packager
+          sudo apt-get install -y p7zip-full jq wget
 
       - name: Fetch Latest Upstream Windows Release
         run: |
-          # Uses jq to cleanly parse the download URL without line break/character corruption
-          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/WiiDesk/WiiDesk-1.0.0/releases/latest | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url')
-          echo "Downloading from: $DOWNLOAD_URL"
-          wget -O installer.exe "$DOWNLOAD_URL"
+          RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases/latest)
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | test(".*\\.(exe|zip)$")) | .browser_download_url' | head -n 1)
+          
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Failed to find release asset"
+            exit 1
+          fi
+          
+          echo "Downloading $DOWNLOAD_URL"
+          wget -O upstream_release.exe "$DOWNLOAD_URL"
 
-      - name: Extract app.asar
+      - name: Extract Upstream Executable
         run: |
-          # 1. First pass: extract NSIS installer structure
-          7z x installer.exe -oextracted_exe
+          7z x upstream_release.exe -oextracted_exe
 
-          # 2. Extract any nested 7z archives found in $PLUGINSDIR (e.g., app-64.7z)
-          find extracted_exe -type f -name "*.7z" -exec 7z x {} -oextracted_exe/unpacked_7z \; || true
-
-          # 3. Dynamically search for app.asar across all extracted content
+      - name: Extract app.asar to Unpacked Directory
+        run: |
           ASAR_PATH=$(find extracted_exe -type f -name "app.asar" | head -n 1)
-
+          
           if [ -z "$ASAR_PATH" ]; then
-            echo "Error: Could not locate app.asar in extracted archive!"
-            echo "Directory layout:"
-            find extracted_exe
+            echo "app.asar not found in extracted release!"
             exit 1
           fi
 
-          echo "Found app.asar at: $ASAR_PATH"
-          mkdir -p src/resources
-          cp "$ASAR_PATH" src/resources/app.asar
-
-      - name: Create Minimal package.json for Packager
-        run: |
-          cat << 'EOF' > src/package.json
-          {
-            "name": "wiidesk",
-            "version": "1.0.0",
-            "main": "resources/app.asar"
-          }
-          EOF
+          npx @electron/asar extract "$ASAR_PATH" unpacked
 
       - name: Build Linux Directory via Electron Packager
         run: |
-          npx @electron/packager ./src WiiDesk --platform=linux --arch=x64 --out=dist --overwrite --electron-version=30.0.0
+          npx @electron/packager ./unpacked WiiDesk --platform=linux --arch=x64 --out=dist --overwrite --electron-version=30.0.0
+
+      - name: Move Unpacked Files into Resources
+        run: |
+          rm -rf dist/WiiDesk-linux-x64/resources/app*
+          mkdir -p dist/WiiDesk-linux-x64/resources/app
+          cp -r unpacked/* dist/WiiDesk-linux-x64/resources/app/
 
       - name: Download appimagetool
         run: |
           wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
-      - name: Setup AppDir and Desktop Entry
+
+      - name: Setup AppDir Structure
         run: |
-          # 1. Copy icon into AppDir root
           cp wiidesk.png dist/WiiDesk-linux-x64/wiidesk.png
 
-          # 2. Create desktop file using your exact working spec
           cat << 'EOF' > dist/WiiDesk-linux-x64/WiiDesk.desktop
           [Desktop Entry]
           Name=WiiDesk
@@ -87,12 +81,13 @@ jobs:
           Comment=WiiDesk Desktop Application
           EOF
 
-          # 3. Create the missing AppRun entry point required by AppImage
           cd dist/WiiDesk-linux-x64
           ln -s WiiDesk AppRun
-      - name: Build AppImage
+
+      - name: Build and Chmod AppImage
         run: |
           ./appimagetool-x86_64.AppImage --appimage-extract-and-run dist/WiiDesk-linux-x64 WiiDesk-x86_64.AppImage
+          chmod +x WiiDesk-x86_64.AppImage
 
       - name: Upload AppImage Artifact
         uses: actions/upload-artifact@v4
