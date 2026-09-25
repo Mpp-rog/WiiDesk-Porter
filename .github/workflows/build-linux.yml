@@ -71,21 +71,25 @@ jobs:
         run: |
           wget https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
-      - name: Create Desktop Entry and Copy Icon
+      - name: Setup AppDir and Desktop Entry
         run: |
-          # Copy your repository's wiidesk.png into the AppDir root
+          # 1. Copy icon into AppDir root
           cp wiidesk.png dist/WiiDesk-linux-x64/wiidesk.png
 
-          # Create the desktop entry pointing to the executable and icon
+          # 2. Create desktop file using your exact working spec
           cat << 'EOF' > dist/WiiDesk-linux-x64/WiiDesk.desktop
           [Desktop Entry]
           Name=WiiDesk
-          Exec=WiiDesk
+          Exec=WiiDesk --no-sandbox
           Icon=wiidesk
           Type=Application
           Categories=Utility;
           Comment=WiiDesk Desktop Application
           EOF
+
+          # 3. Create the missing AppRun entry point required by AppImage
+          cd dist/WiiDesk-linux-x64
+          ln -s WiiDesk AppRun
       - name: Build AppImage
         run: |
           ./appimagetool-x86_64.AppImage --appimage-extract-and-run dist/WiiDesk-linux-x64 WiiDesk-x86_64.AppImage
