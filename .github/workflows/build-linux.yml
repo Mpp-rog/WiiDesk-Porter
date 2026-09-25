@@ -3,7 +3,7 @@ name: Build Linux AppImage
 on:
   workflow_dispatch: # Allows manual trigger from the Actions tab
   schedule:
-    - cron: '0 0 * * *' # Automatically runs daily
+    - cron: '0 0 * * *' # Automatically runs daily at midnight UTC
 
 jobs:
   build:
@@ -21,20 +21,37 @@ jobs:
       - name: Install System & Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full wget fuse
+          sudo apt-get install -y p7zip-full wget fuse jq
           npm install -g @electron/packager
 
       - name: Fetch Latest Upstream Windows Release
         run: |
+          # Uses jq to cleanly parse the download URL without line break/character corruption
           DOWNLOAD_URL=$(curl -s https://api.github.com/repos/WiiDesk/WiiDesk-1.0.0/releases/latest | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url')
           echo "Downloading from: $DOWNLOAD_URL"
           wget -O installer.exe "$DOWNLOAD_URL"
 
       - name: Extract app.asar
         run: |
+          # 1. First pass: extract NSIS installer structure
           7z x installer.exe -oextracted_exe
+
+          # 2. Extract any nested 7z archives found in $PLUGINSDIR (e.g., app-64.7z)
+          find extracted_exe -type f -name "*.7z" -exec 7z x {} -oextracted_exe/unpacked_7z \; || true
+
+          # 3. Dynamically search for app.asar across all extracted content
+          ASAR_PATH=$(find extracted_exe -type f -name "app.asar" | head -n 1)
+
+          if [ -z "$ASAR_PATH" ]; then
+            echo "Error: Could not locate app.asar in extracted archive!"
+            echo "Directory layout:"
+            find extracted_exe
+            exit 1
+          fi
+
+          echo "Found app.asar at: $ASAR_PATH"
           mkdir -p src/resources
-          cp "extracted_exe/\$PLUGINSDIR/app-64/resources/app.asar" src/resources/
+          cp "$ASAR_PATH" src/resources/app.asar
 
       - name: Create Minimal package.json for Packager
         run: |
