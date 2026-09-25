@@ -26,7 +26,8 @@ jobs:
 
       - name: Fetch Latest Upstream Windows Release
         run: |
-          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/WiiDesk/WiiDesk-1.0.0/releases/latest | grep "browser_download_url.*exe" | cut -d : -f 2,3 | tr -d \")
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/WiiDesk/WiiDesk-1.0.0/releases/latest | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url')
+          echo "Downloading from: $DOWNLOAD_URL"
           wget -O installer.exe "$DOWNLOAD_URL"
 
       - name: Extract app.asar
