@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WiiDesk Port Downloads</title>
+  <title>WiiDesk Downloads</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -15,10 +15,13 @@
       background-color: #0d0d11;
       color: #e0e0e0;
       margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
     }
     .container {
       text-align: center;
-      padding: 24px;
+      max-width: 550px;
+      width: 100%;
     }
     .btn {
       display: inline-block;
@@ -32,7 +35,10 @@
       text-decoration: none;
       cursor: pointer;
       transition: background-color 0.2s ease, transform 0.1s ease;
-      box-shadow: none;
+      width: 100%;
+      max-width: 300px;
+      margin: 8px 0;
+      box-sizing: border-box;
     }
     .btn:hover {
       background-color: #7b1fa2;
@@ -45,9 +51,19 @@
       background-color: #21262d !important;
       color: #6e7681 !important;
       cursor: not-allowed !important;
-      box-shadow: none !important;
       border: 1px solid #30363d;
       transform: none !important;
+    }
+    .note-box {
+      margin-top: 28px;
+      padding: 16px;
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #8b949e;
+      text-align: left;
     }
     #status {
       margin-top: 20px;
@@ -61,51 +77,67 @@
   <div class="container">
     <div id="download-container"></div>
     <div id="status">Locating latest releases...</div>
+
+    <div class="note-box">
+      <strong>Note:</strong> Remember that on Sundays new builds for the macOS and Linux will be ran. This is so if WiiDesk ever gets an update it will have Linux and macOS versions soon. Ping <em>"i get pings for dead chat & wii"</em> on the WiiDesk server so he can update them. He didn't make this app but I Mr.Dave did <em>("I don't have a Discord sadly :(")</em>. He is the one hosting it for me since he is a great friend. Now go download what you want from this site!
+    </div>
   </div>
 
   <script>
-    const OWNER = 'Mpp-rog';
-    const REPO = 'WiiDesk-Porter';
+    const PORTER_OWNER = 'Mpp-rog';
+    const PORTER_REPO = 'WiiDesk-Porter';
+    const UPSTREAM_OWNER = 'WiiDesk';
+    const UPSTREAM_REPO = 'WiiDesk';
 
     async function fetchLatestReleases() {
       const statusDiv = document.getElementById('status');
       const containerDiv = document.getElementById('download-container');
 
       try {
-        const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`);
-        
-        if (!response.ok) {
-          statusDiv.innerText = "No published releases found.";
-          return;
+        // 1. Fetch Upstream Windows Release
+        let winUrl = `https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/latest`;
+        const winRes = await fetch(`https://api.github.com/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/latest`);
+        if (winRes.ok) {
+          const winData = await winRes.json();
+          winUrl = winData.html_url;
         }
 
-        const data = await response.json();
-        
-        // Find assets starting with 'wiidesk' and ending with .appimage or .dmg
-        const appimageAsset = data.assets.find(asset => {
-          const name = asset.name.toLowerCase();
-          return name.startsWith('wiidesk') && name.endsWith('.appimage');
-        });
+        // 2. Fetch Linux & macOS Ports from Porter Repo
+        const porterRes = await fetch(`https://api.github.com/repos/${PORTER_OWNER}/${PORTER_REPO}/releases/latest`);
+        let appimageAsset = null;
+        let dmgAsset = null;
 
-        const dmgAsset = data.assets.find(asset => {
-          const name = asset.name.toLowerCase();
-          return name.startsWith('wiidesk') && name.endsWith('.dmg');
-        });
+        if (porterRes.ok) {
+          const porterData = await porterRes.json();
+          
+          appimageAsset = porterData.assets.find(asset => {
+            const name = asset.name.toLowerCase();
+            return name.startsWith('wiidesk') && name.endsWith('.appimage');
+          });
+
+          dmgAsset = porterData.assets.find(asset => {
+            const name = asset.name.toLowerCase();
+            return name.startsWith('wiidesk') && name.endsWith('.dmg');
+          });
+        }
 
         let buttonsHtml = '';
 
-        // Linux Button (Purple, Flat design)
+        // Dynamic Windows Link
+        buttonsHtml += `<a class="btn" href="${winUrl}" target="_blank" rel="noopener">WiiDesk for Windows</a><br>`;
+
+        // Linux AppImage Link
         if (appimageAsset) {
-          buttonsHtml += `<a class="btn" href="${appimageAsset.browser_download_url}">wiidesk port for linux</a><br><br>`;
+          buttonsHtml += `<a class="btn" href="${appimageAsset.browser_download_url}">WiiDesk Port for Linux</a><br>`;
         } else {
-          buttonsHtml += `<button class="btn btn-disabled" disabled>wiidesk port for linux (not available)</button><br><br>`;
+          buttonsHtml += `<button class="btn btn-disabled" disabled>WiiDesk Port for Linux (Not Available)</button><br>`;
         }
 
-        // macOS DMG Button (Grayed Out)
+        // macOS DMG Link
         if (dmgAsset) {
-          buttonsHtml += `<a class="btn" href="${dmgAsset.browser_download_url}">wiidesk port for mac os</a>`;
+          buttonsHtml += `<a class="btn" href="${dmgAsset.browser_download_url}">WiiDesk Port for macOS</a>`;
         } else {
-          buttonsHtml += `<button class="btn btn-disabled" disabled>mac os build isnt here yet</button>`;
+          buttonsHtml += `<button class="btn btn-disabled" disabled>macOS Build Isn't Here Yet</button>`;
         }
 
         statusDiv.style.display = "none";
