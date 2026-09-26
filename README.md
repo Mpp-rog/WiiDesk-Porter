@@ -9,10 +9,4 @@ linux
 
 mac os
 
-to do:
-
-android
-
-ps4
-
-demo
+anything that can load the wiidesk demo
