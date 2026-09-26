@@ -81,16 +81,24 @@ jobs:
 
           echo "Found app.asar at: $ASAR_PATH"
           npx @electron/asar extract "$ASAR_PATH" unpacked
-
       - name: Wrap Web App with Capacitor
         run: |
           cd unpacked
           
+          # Move web app files into a dedicated www directory for Capacitor
+          mkdir -p www
+          cp -r index.html css js assets img static media www/ 2>/dev/null || true
+          
+          # Fallback: if specific subfolders aren't found, copy all non-hidden files into www
+          if [ ! -f "www/index.html" ]; then
+            cp -r * www/ 2>/dev/null || true
+          fi
+          
           # Install Capacitor dependencies
           npm install @capacitor/core @capacitor/cli @capacitor/android
           
-          # Initialize Capacitor with app metadata
-          npx cap init WiiDesk com.wiidesk.app --web-dir .
+          # Initialize Capacitor pointing to the www directory
+          npx cap init WiiDesk com.wiidesk.app --web-dir www
           
           # Add Android target and sync files
           npx cap add android
