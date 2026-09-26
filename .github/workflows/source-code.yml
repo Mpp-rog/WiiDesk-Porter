@@ -76,7 +76,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Switch to an orphan branch so it contains only the extracted source code
-          git checkout --orphan "wiidesk source code"
+          git checkout --orphan "wiidesk-source-code"
           
           # Remove tracked files from main branch tracking index
           git rm -rf .
@@ -90,6 +90,6 @@ jobs:
           git commit -m "Automated source code sync from upstream release"
           
           # Force push to update the branch on GitHub
-          git push origin "wiidesk source code" --force
+          git push origin "wiidesk-source-code" --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
