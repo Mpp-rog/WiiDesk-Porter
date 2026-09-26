@@ -1,0 +1,122 @@
+name: Build Android APK
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install System & Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full jq wget
+
+      - name: Fetch Latest Upstream Windows Release
+        run: |
+          # Try fetching latest release first, fallback to all releases if latest is null
+          RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases/latest)
+          
+          if echo "$RELEASE_JSON" | grep -q "Not Found"; then
+            echo "Latest release not found, querying all releases/tags..."
+            RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases | jq '.[0]')
+          fi
+
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[]? | select(.name | test(".*\\.(exe|zip)$")) | .browser_download_url' | head -n 1)
+          
+          # Direct fallback if GitHub API assets are empty
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Falling back to direct release asset tag URL..."
+            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe"
+          fi
+          
+          echo "Downloading $DOWNLOAD_URL"
+          wget -O upstream_release.exe "$DOWNLOAD_URL"
+
+      - name: Extract Upstream Executable
+        run: |
+          # First pass extraction of the NSIS installer
+          7z x upstream_release.exe -oextracted_exe
+
+          # Second pass: check for nested app*.7z archive inside $PLUGINSDIR or root
+          NESTED_7Z=$(find extracted_exe -type f -iname "app*.7z" | head -n 1)
+          if [ -n "$NESTED_7Z" ]; then
+            echo "Found nested archive: $NESTED_7Z. Extracting..."
+            7z x "$NESTED_7Z" -oextracted_exe/unpacked_app -y
+          fi
+
+      - name: Extract app.asar to Unpacked Directory
+        run: |
+          ASAR_PATH=$(find extracted_exe -type f -name "app.asar" | head -n 1)
+          
+          if [ -z "$ASAR_PATH" ]; then
+            echo "app.asar not found in extracted release!"
+            echo "Contents of extracted_exe for debugging:"
+            find extracted_exe -maxdepth 3
+            exit 1
+          fi
+
+          echo "Found app.asar at: $ASAR_PATH"
+          npx @electron/asar extract "$ASAR_PATH" unpacked
+
+      - name: Wrap Web App with Capacitor
+        run: |
+          cd unpacked
+          
+          # Install Capacitor dependencies
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          
+          # Initialize Capacitor with app metadata
+          npx cap init WiiDesk com.wiidesk.app --web-dir .
+          
+          # Add Android target and sync files
+          npx cap add android
+          npx cap sync android
+
+      - name: Build APK via Gradle
+        run: |
+          cd unpacked/android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          
+          # Copy compiled APK out to project root
+          cp app/build/outputs/apk/debug/app-debug.apk ../../WiiDesk-Android.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiDesk-Android-APK
+          path: WiiDesk-Android.apk
+      
+      - name: Create Tag and Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "latest"
+          name: "WiiDesk Releases"
+          body: "Automated Android APK build generated from upstream Windows release."
+          files: WiiDesk-Android.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
