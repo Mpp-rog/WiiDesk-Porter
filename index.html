@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WiiDesk Downloads</title>
+  <title>WiiDesk ports</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -87,21 +87,30 @@
     const PORTER_OWNER = 'Mpp-rog';
     const PORTER_REPO = 'WiiDesk-Porter';
     const UPSTREAM_OWNER = 'WiiDesk';
-    const UPSTREAM_REPO = 'WiiDesk';
+    
+    // Explicit requested base URL
+    const BASE_WIN_URL = 'https://github.com/WiiDesk/WiiDesk-1.0.0/releases/tag/v1.0.0';
 
     async function fetchLatestReleases() {
       const statusDiv = document.getElementById('status');
       const containerDiv = document.getElementById('download-container');
 
+      let winUrl = BASE_WIN_URL;
+
       try {
-        // 1. Fetch Upstream Windows Release
-        let winUrl = `https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/latest`;
-        const winRes = await fetch(`https://api.github.com/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/releases/latest`);
+        // 1. Check upstream for newer release versions
+        const winRes = await fetch(`https://api.github.com/repos/${UPSTREAM_OWNER}/WiiDesk/releases/latest`);
         if (winRes.ok) {
           const winData = await winRes.json();
-          winUrl = winData.html_url;
+          if (winData.html_url) {
+            winUrl = winData.html_url;
+          }
         }
+      } catch (e) {
+        console.warn("Could not check for newer Windows release, defaulting to v1.0.0");
+      }
 
+      try {
         // 2. Fetch Linux & macOS Ports from Porter Repo
         const porterRes = await fetch(`https://api.github.com/repos/${PORTER_OWNER}/${PORTER_REPO}/releases/latest`);
         let appimageAsset = null;
@@ -123,7 +132,7 @@
 
         let buttonsHtml = '';
 
-        // Dynamic Windows Link
+        // Windows Link (Defaults to v1.0.0, updates if newer version is found)
         buttonsHtml += `<a class="btn" href="${winUrl}" target="_blank" rel="noopener">WiiDesk for Windows</a><br>`;
 
         // Linux AppImage Link
