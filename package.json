@@ -1,0 +1,9 @@
+{
+  "name": "wiidesk",
+  "version": "1.0.0",
+  "description": "Wii Menu simulator",
+  "main": "main.js",
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
