@@ -25,7 +25,7 @@ jobs:
           node-version: 20
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '21'
@@ -103,6 +103,23 @@ jobs:
           # Add Android target and sync files
           npx cap add android
           npx cap sync android
+
+      - name: Fix Kotlin Duplicate Dependencies
+        run: |
+          cat << 'EOF' >> unpacked/android/build.gradle
+
+          subprojects {
+              configurations.all {
+                  resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+                      if (details.requested.group == 'org.jetbrains.kotlin') {
+                          if (details.requested.name == 'kotlin-stdlib-jdk7' || details.requested.name == 'kotlin-stdlib-jdk8') {
+                              details.useTarget "org.jetbrains.kotlin:kotlin-stdlib:${details.requested.version}"
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: Build APK via Gradle
         run: |
