@@ -1,0 +1,95 @@
+name: Extract and Push Source Code
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  extract-source:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full jq wget
+
+      - name: Fetch Latest Upstream Windows Release
+        run: |
+          RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases/latest)
+          
+          if echo "$RELEASE_JSON" | grep -q "Not Found"; then
+            echo "Latest release not found, querying all releases/tags..."
+            RELEASE_JSON=$(curl -s https://api.github.com/repos/wiidesk/wiidesk/releases | jq '.[0]')
+          fi
+
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[]? | select(.name | test(".*\\.(exe|zip)$")) | .browser_download_url' | head -n 1)
+          
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Falling back to direct release asset tag URL..."
+            DOWNLOAD_URL="https://github.com/WiiDesk/WiiDesk-1.0.0/releases/download/v1.0.0/WiiDesk.Setup.1.0.0.exe"
+          fi
+          
+          echo "Downloading $DOWNLOAD_URL"
+          wget -O upstream_release.exe "$DOWNLOAD_URL"
+
+      - name: Extract Upstream Executable
+        run: |
+          7z x upstream_release.exe -oextracted_exe
+
+          NESTED_7Z=$(find extracted_exe -type f -iname "app*.7z" | head -n 1)
+          if [ -n "$NESTED_7Z" ]; then
+            echo "Found nested archive: $NESTED_7Z. Extracting..."
+            7z x "$NESTED_7Z" -oextracted_exe/unpacked_app -y
+          fi
+
+      - name: Extract app.asar to Source Directory
+        run: |
+          ASAR_PATH=$(find extracted_exe -type f -name "app.asar" | head -n 1)
+          
+          if [ -z "$ASAR_PATH" ]; then
+            echo "app.asar not found in extracted release!"
+            exit 1
+          fi
+
+          echo "Found app.asar at: $ASAR_PATH"
+          npx @electron/asar extract "$ASAR_PATH" ./source-code
+
+      - name: Push Source Code to "wiidesk source code" Branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Switch to an orphan branch so it contains only the extracted source code
+          git checkout --orphan "wiidesk source code"
+          
+          # Remove tracked files from main branch tracking index
+          git rm -rf .
+          
+          # Move extracted source files to repository root
+          cp -rn source-code/* .
+          rm -rf source-code upstream_release.exe extracted_exe
+
+          # Add and commit all extracted source code
+          git add -A
+          git commit -m "Automated source code sync from upstream release"
+          
+          # Force push to update the branch on GitHub
+          git push origin "wiidesk source code" --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
