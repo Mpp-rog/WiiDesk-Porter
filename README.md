@@ -1,12 +1,15 @@
 # WiiDesk Porter
-hello this is the AUTO PORTER for wiidesk you are allowed to fork this for your own needs.
+[!NOTE]
+** THIS REPO IS NOT ONLY MADE FOR WIIDESK. **
+even if i used it for that, the repo is made for any electron app that has a "app.asar" file, yes you can just copy the unpacked files if thats what the electron app is using
 
-devices you can use wiidesk on:
 
-windows
+# why WiiDesk?
+i started randomly
 
-linux
+it was one random day i found out how to get the app.asar file and called up dave to help me
 
-mac os
+now we have this repo made for any electron or even random apps that arent electron to be ported
 
-anything that can load the wiidesk demo
+# i'm i allowed to fork this?
+yes.
