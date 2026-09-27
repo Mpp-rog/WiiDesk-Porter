@@ -39,7 +39,7 @@ jobs:
         run: |
             mkdir unpacked
             cd unpacked
-            gh clone Mpp-rog/WiiDesk-webapp .
+            gh repo clone Mpp-rog/WiiDesk-webapp .
       - name: Wrap Web App with Capacitor
         run: |
           # Move web app files into a dedicated www directory for Capacitor
