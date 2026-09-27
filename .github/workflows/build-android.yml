@@ -43,17 +43,15 @@ jobs:
         run: |
           cd unpacked
           
-          # Move web app files into a dedicated www directory for Capacitor
+          # Create dedicated www directory for Capacitor
           mkdir -p www
           
-          # Fallback check before copying to avoid moving www into itself
-          if [ -f "index.html" ]; then
-            cp -r index.html css js assets img static media www/ 2>/dev/null || true
-          else
-            # Copy non-hidden files except www
-            shopt -s extglob
-            cp -r !(www) www/ 2>/dev/null || true
-          fi
+          # Safely copy non-www files into www/
+          for item in *; do
+            if [ "$item" != "www" ]; then
+              cp -r "$item" www/ 2>/dev/null || true
+            fi
+          done
           
           # Install Capacitor dependencies
           npm install @capacitor/core @capacitor/cli @capacitor/android
