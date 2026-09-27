@@ -25,7 +25,7 @@ jobs:
           node-version: 20
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21'
@@ -35,20 +35,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y p7zip-full jq wget gh
 
-      - name: get files needed
+      - name: Get files needed
         run: |
-            mkdir unpacked
-            cd unpacked
-            git clone https://github.com/Mpp-rog/WiiDesk-webapp.git .
+          git clone https://github.com/Mpp-rog/WiiDesk-webapp.git unpacked
+
       - name: Wrap Web App with Capacitor
         run: |
+          cd unpacked
+          
           # Move web app files into a dedicated www directory for Capacitor
           mkdir -p www
-          cp -r index.html css js assets img static media www/ 2>/dev/null || true
           
-          # Fallback: if specific subfolders aren't found, copy all non-hidden files into www
-          if [ ! -f "www/index.html" ]; then
-            cp -r * www/ 2>/dev/null || true
+          # Fallback check before copying to avoid moving www into itself
+          if [ -f "index.html" ]; then
+            cp -r index.html css js assets img static media www/ 2>/dev/null || true
+          else
+            # Copy non-hidden files except www
+            shopt -s extglob
+            cp -r !(www) www/ 2>/dev/null || true
           fi
           
           # Install Capacitor dependencies
@@ -92,7 +96,7 @@ jobs:
         with:
           name: WiiDesk-Android-APK
           path: WiiDesk-Android.apk
-      
+        
       - name: Create Tag and Release
         uses: softprops/action-gh-release@v2
         with:
