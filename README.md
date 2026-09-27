@@ -1,6 +1,7 @@
 # WiiDesk Porter
 >[!NOTE]
->** THIS REPO IS NOT ONLY MADE FOR WIIDESK. **
+>**THIS REPO IS NOT ONLY MADE FOR WIIDESK.**
+>
 >even if i used it for that, the repo is made for any electron app that has a "app.asar" file, yes you can just copy the unpacked files if thats what the electron app is using
 
 
