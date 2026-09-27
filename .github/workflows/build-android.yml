@@ -100,7 +100,7 @@ jobs:
         with:
           tag_name: "latest"
           name: "WiiDesk Releases"
-          body: "Automated Android APK build generated from upstream Windows release."
+          body: "Automated Android APK build generated from demo website"
           files: WiiDesk-Android.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
