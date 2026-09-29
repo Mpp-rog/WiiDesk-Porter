@@ -3,6 +3,14 @@ name: Extract and Push Source Code
 permissions:
   contents: write
 
+#on:
+#  schedule:
+#    - cron: '0 0 * * 0' # Every Sunday at midnight
+#  workflow_dispatch:
+#  push:
+#    branches:
+#      - main
+
 jobs:
   extract-source:
     runs-on: ubuntu-latest
