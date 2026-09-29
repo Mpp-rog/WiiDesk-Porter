@@ -42,10 +42,12 @@ thats what Wii Lite is for, it doesnt save anything + its just html and js no el
 
 that one gets the source code of WiiDesk, not the lite one ok?, its so if you know how to port electron to... i dont know a PS4? you can port WiiDesk to it.
 
+**WANRING: that yaml file has been shutdown if you want source code THEN GET IT YOUR OWN WAY**
+
 
 # why are you stepping away?
 
-i am kind of done, once i get python working "since next WiiDesk update is 100% going to use python" i can leave this project if you want you can talk to me on the wiidesk discord server.
+i am kind of done, once i get python working "since next WiiDesk update is 58% going to use python" i can leave this project if you want you can talk to me on the wiidesk discord server.
 
 # why does the site have a windows button but theres no yaml for that?
 
