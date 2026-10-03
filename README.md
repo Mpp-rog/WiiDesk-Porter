@@ -63,16 +63,20 @@ anyways cya!
 
 dave "he has no discord or github at all" - programmer of project.
 
+Mpp-rog "me" - hoster of site and maker of this readme
+
+WiiDesk "the real dev" - maker of WiiDesk, cool guy.
+
+JerosGamer89 "idk what he did but i had to add him in the credits since the wiidesk repo got the GPL License."
+               |   
+dont mind me.  \/
+
 # License
 WiiDesk is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
 
 You are free to use, modify, and share WiiDesk. If you release a modified version, it must also be open source under GPL-3.0
 
-Mpp-rog "me" - hoster of site and maker of this readme
-
-WiiDesk "the real dev" - maker of WiiDesk, cool guy.
-
-JerosGamer89 "idk what he did but i had to add him in the credits since the wiidesk repo got the GPL thing."
 
 
-dont mind the mdashs.
+
+
