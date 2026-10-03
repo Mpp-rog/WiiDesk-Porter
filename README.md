@@ -67,5 +67,7 @@ Mpp-rog "me" - hoster of site and maker of this readme
 
 WiiDesk "the real dev" - maker of WiiDesk, cool guy.
 
+JerosGamer89 "idk what he did but i had to add him in the credits since the wiidesk repo got the GPL thing."
+
 
 dont mind the mdashs.
